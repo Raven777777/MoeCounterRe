@@ -124,5 +124,5 @@ $c = array(
 
 图片来源: https://github.com/journey-ad/Moe-counter
 
-
+感谢 [Cloudflare](https://www.cloudflare.com/) 提供代理
 
