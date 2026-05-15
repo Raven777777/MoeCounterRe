@@ -1,168 +1,184 @@
 <?php
+// 开启严格类型模式，符合 PHP 8+ 最佳实践
+declare(strict_types=1);
 
+/**
+ * 获取URL参数中的name并校验长度
+ */
+function getName(array $config): string {
+    // 使用 PHP 7/8 的 Null 合并运算符 ??
+    $name = $_GET['name'] ?? '';
+    
+    // 不再需要 escapeString，因为我们将使用 PDO/预处理语句
+    if (mb_strlen($name, 'UTF-8') >= $config['maxNameLength']) {
+        die('参数超出长度限制');
+    }
 
-// 获取URL参数中的name
-function getName(){
-	global $c;
-	$name = isset($_GET['name']) ? $_GET['name'] : '';
-	$name = SQLite3::escapeString($name);
-	$nameLength = mb_strlen($name, 'UTF8');
-	if ($nameLength < 1 || $nameLength > $c['maxNameLength']) {
-		echo '参数无效: 名称过长或过短';
-		exit;
-	}
-
-	return $name;
+    return $name;
 }
 
+/**
+ * 初始化并连接数据库
+ */
+function openDB(): SQLite3 {
+    $dbFile = 'Counter.db';
+    $isNewDb = !file_exists($dbFile);
 
-// 初始化数据库
-function openDB(){
-	// 初始化数据库
-	if (file_exists('Counter.db') === false) {
-		echo '数据库不存在';
-		exit();
-	}
-	$db = new SQLite3('Counter.db');
-	$db->busyTimeout(2000);
-	if (!$db) {exit();}
+    $db = new SQLite3($dbFile);
+    $db->busyTimeout(2000);
 
-	return $db;
+    // 如果数据库刚创建，初始化表结构
+    if ($isNewDb) {
+        $db->exec("CREATE TABLE IF NOT EXISTS Counter (Name TEXT UNIQUE, Num INTEGER)");
+    }
+
+    return $db;
 }
 
-
-// 获取数值
-function getNum($name){
-	global $db;
-	$ret = $db->query("SELECT Num FROM Counter WHERE Name = '$name';");
-	$num = $ret->fetchArray(SQLITE3_ASSOC);
-
-	return isset($num['Num'])? $num['Num'] : -1;
+/**
+ * 获取指定名称的数值
+ */
+function getNum(SQLite3 $db, string $name): int {
+    // 使用预处理语句，防止 SQL 注入
+    $stmt = $db->prepare("SELECT Num FROM Counter WHERE Name = :name");
+    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+    
+    $result = $stmt->execute();
+    if ($result !== false) {
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        if ($row !== false && isset($row['Num'])) {
+            return (int)$row['Num'];
+        }
+    }
+    return -1;
 }
 
-
-// 获取记录总数
-function getSum(){
-	global $db;
-	$ret = $db->query("SELECT max(rowid) FROM Counter;");
-	$sum = $ret->fetchArray(SQLITE3_ASSOC);
-
-	return isset($sum['max(rowid)'])? $sum['max(rowid)'] : '';
+/**
+ * 获取数据库中的记录总数
+ */
+function getSum(SQLite3 $db): int {
+    $result = $db->query("SELECT MAX(rowid) as max_id FROM Counter;");
+    if ($result !== false) {
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        if ($row !== false && isset($row['max_id'])) {
+            return (int)$row['max_id'];
+        }
+    }
+    return 0;
 }
 
-
-// 修改记录
-function setNum($name, $num){
-	global $db;
-	$start = $db->exec("UPDATE Counter SET Num = '$num' WHERE Name = '$name';");
-
-	return $start;
+/**
+ * 修改现有记录的数值
+ */
+function setNum(SQLite3 $db, string $name, int $num): bool {
+    $stmt = $db->prepare("UPDATE Counter SET Num = :num WHERE Name = :name");
+    $stmt->bindValue(':num', $num, SQLITE3_INTEGER);
+    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+    
+    return (bool)$stmt->execute();
 }
 
-
-// 创建新记录
-function addName($name, $num = 0){
-	global $db;
-	$state = $db->exec("INSERT INTO Counter (Name, Num) VALUES ('$name', '$num');");
-
-	return $state;
+/**
+ * 创建新记录
+ */
+function addName(SQLite3 $db, string $name, int $num = 0): bool {
+    $stmt = $db->prepare("INSERT INTO Counter (Name, Num) VALUES (:name, :num)");
+    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+    $stmt->bindValue(':num', $num, SQLITE3_INTEGER);
+    
+    return (bool)$stmt->execute();
 }
 
+/**
+ * 判断是否允许创建新记录
+ */
+function CANcreateRecord(array $config, SQLite3 $db): string {
+    if ($config['createRecord'] !== true) {
+        return '服务器不允许创建记录';
+    }
 
-// 判断是否可以创建记录
-function CANcreateRecord(){
-	global $c;
-	$m = 'ok';
+    if ($config['maxRecordNum'] !== -1 && getSum($db) >= $config['maxRecordNum']) {
+        return '达到记录创建限制';
+    }
 
-	// 判断是否允许创建记录 createRecord
-	if ($c['createRecord'] !== true) {
-		$m = '服务器不允许创建记录';
-	}
-
-	// 判断最大记录数 maxRecordNum
-	if ($c['maxRecordNum'] !== -1  &&  getSum() >= $c['maxRecordNum']) {
-		$m = '达到记录创建限制';
-	}
-
-	return $m;
+    return 'ok';
 }
 
+/**
+ * 渲染并输出计数的图像或代码
+ * 使用联合类型 int|string
+ */
+function renderImg(array $config, int|string $outNum): string {
+    // 获取动态参数或默认配置
+    $minLen = abs((int)($_GET['min_num_length'] ?? $config['minNumLength']));
+    $outMode = $_GET['out_mode'] ?? $config['out_mode'];
+    $imgPrefix = $_GET['img_prefix'] ?? $config['img_prefix'];
+    
+    // 补 0, 转换为字符串
+    $outNumStr = str_pad((string)$outNum, $minLen, "0", STR_PAD_LEFT);
 
-// 渲染图片
-function renderImg($outNum){
-	global $c;
-	// 渲染图片
-	$iM = '';
-	// 补 0, 转换为字符串
-	$outNum = str_pad($outNum, $c['minNumLength'], "0", STR_PAD_LEFT);
+    $width = (int)$config['imgWidth'];
+    $height = (int)$config['imgHeight'];
+    $allWidth = strlen($outNumStr) * $width;
 
-	// 指定输出图片的格式
-	$outMode = isset($_GET['out_mode']) ? $_GET['out_mode'] : $c['out_mode'];
-	// 获取URL中的猫图片前缀
-	$imgPrefix = isset($_GET['img_prefix']) ? $_GET['img_prefix'] : $c['img_prefix'];
+    $iM = '';
 
-	// 图片尺寸
-	$width = $c['imgWidth'];
-	$height = $c['imgHeight'];
-	$allWidth = strlen($outNum) * $c['imgWidth'];
+    if ($outMode === 'xml') { // XML 图片格式 (SVG)
+        $chars = str_split($outNumStr);
 
+        foreach ($chars as $key => $value) {
+            $_width = $key * $width;
+            $imgPath = $config['imgPath-xml'] . $imgPrefix . $value . '.' . $config['imgFormat'];
+            
+            // 确保文件存在再读取，避免抛出警告
+            if (file_exists($imgPath)) {
+                $base64Data = base64_encode(file_get_contents($imgPath));
+                $img = 'data:image/' . $config['imgFormat'] . ';base64,' . $base64Data;
 
-	if ($outMode === 'xml') { // XML 图片格式
-		// 按每个字分割为数组
-		$outNum = str_split($outNum);
+                $iM .= <<<EOF
+                <image x="{$_width}" y="0" width="{$width}" height="{$height}" xlink:href="{$img}" />
 
-		foreach ($outNum as $key => $value) {
-			$_width = $key * $width;
+EOF;
+            }
+        }
 
-			$img = 'data:image/' . $c['imgFormat'] . ';base64,' . base64_encode(file_get_contents($c['imgPath-xml'] . $imgPrefix . $value . '.' . $c['imgFormat']));
+        $iM = <<<EOF
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{$allWidth}" height="{$height}" version="1.1">
+    <title>MoeCount</title>
+    <g>
+$iM
+    </g>
+</svg>
+EOF;
+        header("Content-Type: image/svg+xml; charset=utf-8");
 
-			$iM .= <<< EOF
-			<image x="$_width" y="0" width="$width" height="$height" xlink:href="$img" />
-			EOF;
-		};
+    } else if ($outMode === 'html') { // HTML 代码格式
+        $html_imgLocation = $_GET['align'] ?? $config['html_align'];
+        $chars = str_split($outNumStr);
 
-		// 添加xml标志
-		$iM = <<< EOF
-		<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="$allWidth" height="$height" version="1.1">
-			<title>[IpacEL]/ MoeCount</title>
-			<g>
-				$iM
-			</g>
-		</svg>
-		EOF;
+        foreach ($chars as $value) {
+            $img = $config['imgPath-html'] . $imgPrefix . $value . '.' . $config['imgFormat'];
+            $iM .= <<<EOF
+<img src="{$img}" width="{$width}" height="{$height}" alt="{$value}" />
 
-		header("Content-Type: image/svg+xml; charset=utf-8");
+EOF;
+        }
 
+        $iM = <<<EOF
+<body style="margin:0; padding:0;">
+    <div style="min-width:{$allWidth}px; height:{$height}px; text-align:{$html_imgLocation};">
+        $iM
+    </div>
+</body>
+EOF;
+        header("Content-Type: text/html; charset=utf-8");
 
-	} else if ($outMode === 'html') { // 输出 HTML 代码
-		// html格式时指定显示位置
-		$html_imgLocation = isset($_GET['align']) ? $_GET['align'] : $c['html_align'];
+    } else if ($outMode === 'string') { // 字符串格式
+        $iM = $outNumStr;
+        header("Content-Type: text/plain; charset=utf-8");
+    }
 
-		// 按每个字分割为数组
-		$outNum = str_split($outNum);
-
-		foreach ($outNum as $key => $value) {
-			$img = $c['imgPath-html'] . $imgPrefix . $value . '.' . $c['imgFormat'];
-
-			$iM .= <<< EOF
-			<img src="$img" width="$width" height="$height" />
-			EOF;
-		};
-
-		$iM = <<< EOF
-		<body style="margin:0; padding:0;"><div style="min-width:$allWidth; height:$height; text-align:$html_imgLocation;">$iM</div></body>
-		EOF;
-
-		header("Content-Type: text/html; charset=utf-8");
-
-
-	}else if($outMode === 'string'){ //输出字符串
-		$iM = $outNum;
-	}
-
-
-
-	// 输出
-	header("Cache-Control: max-age=0, no-cache, no-store, must-revalidate");
-	return $iM;
+    // 设置防缓存头
+    header("Cache-Control: max-age=0, no-cache, no-store, must-revalidate");
+    return $iM;
 }
