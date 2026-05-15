@@ -1,65 +1,60 @@
-# 📦 开箱即用的 MoeCounterRe
-
-MoeCounterRe 是一款基于 PHP 开发的轻量级、高度可定制的萌系访问计数器。它支持多种显示模式和输出格式，能够轻松集成到个人博客、GitHub 项目或其他网页中。
+## 📦 Out-of-the-Box MoeCounterRe
+MoeCounterRe is a lightweight, highly customizable moe-style visit counter developed in PHP. It supports multiple display modes and output formats, and can be easily integrated into personal blogs, GitHub projects, or other web pages.
 
 ![Moe-counter](https://love4z.cn/moec/?name=github&theme=rule34_&min_len=7)
 
-这是一个基于 PHP 和 SQLite3 开发的轻量级个性化访问计数器（类似 Moe-Counter）。它支持多种输出模式，并能通过 SVG 嵌入图片，非常适合用于 GitHub 个人主页或博客。
+This is a lightweight, personalized visit counter developed with PHP and SQLite3 (similar to Moe-Counter). It supports multiple output modes and can embed images via SVG, making it perfect for GitHub profiles or blogs.
 
-## 🚀 项目介绍
+### 🚀 Project Introduction
+* **Lightweight & Efficient**: Uses SQLite database, eliminating the need for cumbersome MySQL configuration—ready to use out of the box.
+* **Multi-Theme Support**: Supports switching between different digit themes via image prefixes.
+* **Three Output Modes**:
+* `xml (SVG)`: The most recommended mode. Converts images to Base64 and embeds them into SVG, which can be used directly in GitHub `<img>` tags.
+* `string`: Directly outputs plain text numbers, convenient for API calls.
+* `html`: Outputs standard HTML `<img>` tag groups.
+* **Performance Optimization**: Features built-in singleton pattern for database connections and supports ETag browser cache control.
 
-* **轻量高效**：使用 SQLite 数据库，无需配置繁琐的 MySQL，开箱即用。
-* **多主题支持**：支持通过图片前缀切换不同的数字主题。
-* **三种输出模式**：
-* `xml (SVG)`：最推荐模式，将图片转为 Base64 嵌入 SVG，可直接在 GitHub `<img>` 标签中使用。
-* `string`：直接输出纯文本数字，方便 API 调用。
-* `html`：输出标准的 HTML `<img>` 标签组。
+### 🛠️ Usage
 
-* **性能优化**：内置单例模式连接数据库，并支持 ETag 浏览器缓存控制。
+### 1. Deployment
 
-## 🛠️ 使用方法
+Upload the code to your server, ensuring the PHP environment has the `pdo_sqlite` and `sqlite3` extensions enabled.
 
-### 1. 部署
+Make sure the directory has **write permissions** so the `Counter.db` database file can be generated.
 
-将代码上传至服务器，确保 PHP 环境已开启 `pdo_sqlite` 和 `sqlite3` 扩展。
-确保目录具有**写权限**，以便生成 `Counter.db` 数据库文件。
+### 2. Parameter Description
 
-### 2. 参数说明
+Configure via URL query parameters:
+* `name`: Counter name (e.g., `index`, `github_profile`), defaults to `default`.
+* `theme`: Theme prefix (must correspond to the filenames in the `img/` directory), defaults to `rule34_`.
+* `min_len`: Minimum number of display digits; pads with 0s if insufficient.
+* `out_mode`: Output format, options are `xml`, `string`, `html`.
+* 
+### 3. Usage Examples
 
-通过 URL Query 参数进行配置：
-
-* `name`: 计数器名称（如：`index`, `github_profile`），默认为 `default`。
-* `theme`: 主题前缀（需对应 `img/` 目录下的文件名），默认为 `rule34_`。
-* `min_len`: 最小显示位数，不足则补 0。
-* `out_mode`: 输出格式，可选 `xml`, `string`, `html`。
-
-### 3. 调用示例
-
-#### 在 GitHub Readme 中使用 (推荐)
-
+#### Using in GitHub Readme (Recommended)
 ```markdown
 ![Moe-counter](https://love4z.cn/moec/?name=github&theme=rule34_&min_len=7)
-
 ```
 
-#### 直接作为接口获取数字
-
+#### Directly Fetching the Number via API
 ```bash
 curl "https://love4z.cn/moec/?name=github&out_mode=string"
-
 ```
 
-## 📂 文件结构
+### 📂 File Structure
+* `index.php`: Program entry point, responsible for business logic and configuration.
+* `lib.php`: Core library, containing database operations, security filtering, and rendering logic.
+* `img/`: Image directory, storing digit images for different themes (naming convention: `prefix{0-9}.gif`).
+* `Counter.db`: Auto-generated SQLite database file.
+* 
+### ⚠️ Security Notes
+The project includes a built-in `safeInput` function, which uses the regular expression `/[^a-zA-Z0-9_\-]/` to strictly filter all input parameters, effectively preventing **Path Traversal** and **SQL Injection** risks.
 
-* `index.php`: 程序入口，负责业务逻辑与配置。
-* `lib.php`: 核心库，包含数据库操作、安全过滤及渲染逻辑。
-* `img/`: 图片目录，存放不同主题的数字图片（命名规则：`前缀{0-9}.gif`）。
-* `Counter.db`: 自动生成的 SQLite 数据库文件。
+### 📄 Open Source License
+This project is licensed under the MIT License. Free to use and modify.
+> Project URL: https://github.com/Raven777777/MoeCounterRe
 
-## ⚠️ 安全说明
+> Original Source: https://github.com/ApliNi/Moe-counter-PHP
 
-项目已内置 `safeInput` 函数，通过正则表达式 `/[^a-zA-Z0-9_\-]/` 强制过滤所有输入参数，有效防止 **路径穿越** 和 **SQL 注入** 风险。
-
-## 📄 开源协议
-
-本项目遵循 MIT 协议。欢迎自由使用与二次开发。
+> Tools Used: Gemini ChatGPT GLM
