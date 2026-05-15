@@ -2,7 +2,7 @@
 
 MoeCounterRe 是一款基于 PHP 开发的轻量级、高度可定制的萌系访问计数器。它支持多种显示模式和输出格式，能够轻松集成到个人博客、GitHub 项目或其他网页中。
 
-![Moe-counter](https://love4z.cn/moec/?name=github&out_mode=xml)
+![Moe-counter](https://love4z.cn/moec/?name=github)
 
 ---
 
