@@ -2,94 +2,63 @@
 
 MoeCounterRe 是一款基于 PHP 开发的轻量级、高度可定制的萌系访问计数器。它支持多种显示模式和输出格式，能够轻松集成到个人博客、GitHub 项目或其他网页中。
 
-![Moe-counter](https://love4z.cn/moec/?name=github)
+![Moe-counter](https://love4z.cn/moec/?name=github&theme=rule34_&min_len=7)
 
----
+这是一个基于 PHP 和 SQLite3 开发的轻量级个性化访问计数器（类似 Moe-Counter）。它支持多种输出模式，并能通过 SVG 嵌入图片，非常适合用于 GitHub 个人主页或博客。
 
-## ✨ 核心特性
+## 🚀 项目介绍
 
-- **现代 PHP 支持**：深度优化，完美适配 PHP 8.0 至 PHP 8.5 环境。
-- **多种输出模式**：支持 `xml` (SVG 矢量图)、`html` (外链图片) 以及纯文本格式。
-- **安全可靠**：全面采用 SQLite3 预处理语句（Prepared Statements），从根本上杜绝 SQL 注入风险。
-- **性能卓越**：无 `global` 变量污染，结构清晰，支持响应式布局与防缓存处理。
-- **开箱即用**：自带数据库初始化逻辑，上传即可运行。
+* **轻量高效**：使用 SQLite 数据库，无需配置繁琐的 MySQL，开箱即用。
+* **多主题支持**：支持通过图片前缀切换不同的数字主题。
+* **三种输出模式**：
+* `xml (SVG)`：最推荐模式，将图片转为 Base64 嵌入 SVG，可直接在 GitHub `<img>` 标签中使用。
+* `string`：直接输出纯文本数字，方便 API 调用。
+* `html`：输出标准的 HTML `<img>` 标签组。
 
----
+* **性能优化**：内置单例模式连接数据库，并支持 ETag 浏览器缓存控制。
 
-## 🚀 自部署开始
+## 🛠️ 使用方法
 
-### 1. 部署环境
-- PHP 版本 >= 8.0 (推荐 PHP 8.5)
-- 开启 `SQLite3` 扩展
-- 开启 `mbstring` 扩展
+### 1. 部署
 
-### 2. 安装步骤
-1. 下载项目源代码。
-2. 将文件上传至你的 Web 服务器目录（例如 `/moec/`）。
-3. 确保目录具有读写权限，以便程序自动创建 `Counter.db` 数据库文件。
+将代码上传至服务器，确保 PHP 环境已开启 `pdo_sqlite` 和 `sqlite3` 扩展。
+确保目录具有**写权限**，以便生成 `Counter.db` 数据库文件。
 
-### 3. 调用方式
-在你的页面中插入以下代码即可显示计数器：
+### 2. 参数说明
 
-#### GitHub / Markdown 环境 (推荐 XML 模式)
+通过 URL Query 参数进行配置：
 
-```
+* `name`: 计数器名称（如：`index`, `github_profile`），默认为 `default`。
+* `theme`: 主题前缀（需对应 `img/` 目录下的文件名），默认为 `rule34_`。
+* `min_len`: 最小显示位数，不足则补 0。
+* `out_mode`: 输出格式，可选 `xml`, `string`, `html`。
 
-```text
-File generated: MoeCounterRe_Documentation.md
+### 3. 调用示例
+
+#### 在 GitHub Readme 中使用 (推荐)
 
 ```markdown
-![Moe-counter](https://你的域名/moec/?name=unique_name&out_mode=xml)
+![Moe-counter](https://love4z.cn/moec/?name=github&theme=rule34_&min_len=7)
 
 ```
 
-#### 网页底部 / 博客页脚 (HTML 模式)
+#### 直接作为接口获取数字
 
-```html
-<img src="https://你的域名/moec/?name=unique_name&out_mode=xml" alt="MoeCounter">
-
-```
-
----
-
-## ⚙️ 配置说明
-
-在 `index.php` 的 `$c` 数组中，你可以自定义以下参数：
-
-| 参数 | 说明 | 默认值 |
-| --- | --- | --- |
-| `maxNameLength` | 记录名称的最大长度 | 24 |
-| `minNumLength` | 计数器显示的最小位数（不足补0） | 7 |
-| `maxRecordNum` | 数据库允许创建的最大记录数 | 520000 |
-| `img_prefix` | 使用的主题前缀（对应 img 目录下的文件名） | gelbooru |
-| `imgWidth` / `imgHeight` | 单个数字图片的宽度和高度 | 45 / 100 |
-
----
-
-## 🛠️ 高级用法
-
-通过 URL 参数可以动态调整显示效果：
-
-* **`name`**: 指定计数器记录的唯一标识符。
-* **`mode`**: `ADD_NUM` (默认): 每次访问 +1。 `MONITOR`: 仅显示指定的数字（需配合 `&num=12345`）。 `RECORD_NUM`: 显示当前系统中总共有多少个计数器记录。
-
-
-* **`out_mode`**: `xml` (推荐), `html`, `string`。
-* **`theme`**: 通过 `img_prefix` 参数切换不同的数字主题。
-
----
-
-## 🛡️ 安全性增强
-
-本版本已废弃传统的字符串拼接 SQL 方式，使用绑参模式确保数据安全：
-
-```php
-$stmt = $db->prepare(\"SELECT Num FROM Counter WHERE Name = :name\");
-$stmt->bindValue(':name', $name, SQLITE3_TEXT);
+```bash
+curl "https://love4z.cn/moec/?name=github&out_mode=string"
 
 ```
 
----
+## 📂 文件结构
+
+* `index.php`: 程序入口，负责业务逻辑与配置。
+* `lib.php`: 核心库，包含数据库操作、安全过滤及渲染逻辑。
+* `img/`: 图片目录，存放不同主题的数字图片（命名规则：`前缀{0-9}.gif`）。
+* `Counter.db`: 自动生成的 SQLite 数据库文件。
+
+## ⚠️ 安全说明
+
+项目已内置 `safeInput` 函数，通过正则表达式 `/[^a-zA-Z0-9_\-]/` 强制过滤所有输入参数，有效防止 **路径穿越** 和 **SQL 注入** 风险。
 
 ## 📄 开源协议
 
